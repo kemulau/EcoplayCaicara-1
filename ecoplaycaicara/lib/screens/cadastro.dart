@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
+import 'dart:convert';
+import 'package:provider/provider.dart';
+import '../theme/theme_provider.dart';
+import '../theme/color_blindness.dart';
 import '../widgets/pixel_button.dart';
+import '../widgets/game_frame.dart';
 import 'home.dart';
 import 'login.dart';
 
@@ -18,6 +25,7 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
   String email = '';
   String senha = '';
   String avatar = '';
+  Uint8List? avatarBytes; // avatar customizado (web/mobile)
 
   bool mostrarAcessibilidade = false;
   bool textoAltoContraste = false;
@@ -46,70 +54,125 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
   void initState() {
     super.initState();
     avatar = avatares[0];
+    _restoreCustomAvatar();
+  }
+
+  Future<void> _restoreCustomAvatar() async {
+    final prefs = await SharedPreferences.getInstance();
+    final b64 = prefs.getString('avatarCustomBase64');
+    if (b64 != null && b64.isNotEmpty) {
+      try {
+        final bytes = base64Decode(b64);
+        if (mounted) {
+          setState(() {
+            avatarBytes = bytes;
+            avatar = 'custom';
+          });
+        }
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _pickAndCropAvatar() async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
+      if (picked == null) return;
+
+      // Sem recorte para máxima compatibilidade Web/Mobile. Exibição usa ClipOval.
+      final bytes = await picked.readAsBytes();
+      setState(() {
+        avatarBytes = bytes;
+        avatar = 'custom';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Falha ao selecionar/cortar imagem: $e')),
+      );
+    }
   }
 
   Future<void> salvarPreferencias() async {
     final prefs = await SharedPreferences.getInstance();
+    final themeProvider = context.read<ThemeProvider>();
+
     await prefs.setString('nome', nome);
     await prefs.setString('email', email);
     await prefs.setString('senha', senha);
     await prefs.setString('avatar', avatar);
+    if (avatarBytes != null) {
+      await prefs.setString('avatarCustomBase64', base64Encode(avatarBytes!));
+    } else {
+      await prefs.remove('avatarCustomBase64');
+    }
 
-    await prefs.setBool('textoAltoContraste', textoAltoContraste);
-    await prefs.setBool('textoGrande', textoGrande);
+    // Persistência legacy para outras telas que ainda leem essas chaves
+    await prefs.setBool('textoAltoContraste', themeProvider.highContrast);
+    await prefs.setBool('textoGrande', themeProvider.largeText);
     await prefs.setBool('audioGuiado', audioGuiado);
-    await prefs.setBool('modoEscuro', modoEscuro);
+    await prefs.setBool('modoEscuro', themeProvider.isDark);
     await prefs.setBool('leituraTela', leituraTela);
     await prefs.setBool('reducaoMovimento', reducaoMovimento);
     await prefs.setBool('tecladoAdaptado', tecladoAdaptado);
 
-    await prefs.setString('modoDaltonismo', modoDaltonismoSelecionado);
+    await prefs.setString('modoDaltonismo', _cvdOptionFromType(themeProvider.colorVision));
     await prefs.setString('fonteDislexia', fonteDyslexiaSelecionada);
   }
+
+  // Mapeamento entre opções do dropdown e enum do ThemeProvider
+  String _cvdOptionFromType(ColorVisionType type) {
+    switch (type) {
+      case ColorVisionType.normal:
+        return 'Nenhum';
+      case ColorVisionType.protanopia:
+        return 'Protanopia';
+      case ColorVisionType.deuteranopia:
+        return 'Deuteranopia';
+      case ColorVisionType.tritanopia:
+        return 'Tritanopia';
+      case ColorVisionType.achromatopsia:
+        return 'Monocromacia';
+    }
+  }
+
+  ColorVisionType _cvdTypeFromOption(String option) {
+    switch (option) {
+      case 'Protanopia':
+        return ColorVisionType.protanopia;
+      case 'Deuteranopia':
+        return ColorVisionType.deuteranopia;
+      case 'Tritanopia':
+        return ColorVisionType.tritanopia;
+      case 'Monocromacia':
+        return ColorVisionType.achromatopsia;
+      case 'Nenhum':
+      default:
+        return ColorVisionType.normal;
+    }
+  }
+
+  // Seletor de paleta removido
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = textoAltoContraste || modoEscuro;
-    final escalaTexto = textoGrande ? 1.4 : 1.0;
+    final themeProvider = context.watch<ThemeProvider>();
+    final isDark = theme.brightness == Brightness.dark;
 
-    return MediaQuery(
-      data: MediaQuery.of(context).copyWith(textScaleFactor: escalaTexto),
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('Cadastro de Jogador', style: theme.appBarTheme.titleTextStyle),
-          backgroundColor: isDark ? Colors.teal : theme.appBarTheme.backgroundColor,
-        ),
-        body: Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset('lib/assets/images/background.png', fit: BoxFit.cover),
-            ),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                return Center(
-                  child: ScrollConfiguration(
-                    behavior: const ScrollBehavior().copyWith(overscroll: false, scrollbars: false),
-                    child: SingleChildScrollView(
-                      physics: const ClampingScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: constraints.maxWidth < 600 ? double.infinity : 600,
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? Colors.black.withOpacity(0.7)
-                                : Colors.white.withOpacity(0.85),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Form(
-                            key: _formKey,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
+    return GameScaffold(
+      title: 'Cadastro de Jogador',
+      child: ScrollConfiguration(
+        behavior: const ScrollBehavior().copyWith(overscroll: false, scrollbars: false),
+        child: SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                                 _buildTextField(
                                   'Nome',
                                   theme,
@@ -147,17 +210,24 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
                                   },
                                 ),
                                 const SizedBox(height: 20),
-                                Text('Escolha seu Avatar:', style: theme.textTheme.bodyMedium),
+                                const GameSectionTitle('Escolha seu Avatar:'),
                                 const SizedBox(height: 10),
                                 Center(
                                   child: Column(
                                     children: [
                                       ClipOval(
-                                        child: Image.asset(
-                                          avatares[avatarIndex],
+                                        child: SizedBox(
                                           width: 160,
                                           height: 160,
-                                          fit: BoxFit.cover,
+                                          child: avatarBytes != null
+                                              ? Image.memory(
+                                                  avatarBytes!,
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : Image.asset(
+                                                  avatares[avatarIndex],
+                                                  fit: BoxFit.cover,
+                                                ),
                                         ),
                                       ),
                                       const SizedBox(height: 8),
@@ -169,9 +239,9 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
                                             child: IconButton(
                                               onPressed: () {
                                                 setState(() {
-                                                  avatarIndex =
-                                                      (avatarIndex - 1 + avatares.length) % avatares.length;
+                                                  avatarIndex = (avatarIndex - 1 + avatares.length) % avatares.length;
                                                   avatar = avatares[avatarIndex];
+                                                  avatarBytes = null; // voltou a usar avatar padrão
                                                 });
                                               },
                                               icon: const Icon(Icons.chevron_left),
@@ -185,12 +255,22 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
                                                 setState(() {
                                                   avatarIndex = (avatarIndex + 1) % avatares.length;
                                                   avatar = avatares[avatarIndex];
+                                                  avatarBytes = null;
                                                 });
                                               },
                                               icon: const Icon(Icons.chevron_right),
                                             ),
                                           ),
                                         ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      PixelButton(
+                                        label: 'Escolher Foto',
+                                        icon: Icons.photo_library_rounded,
+                                        iconRight: true,
+                                        onPressed: _pickAndCropAvatar,
+                                        width: 180,
+                                        height: 44,
                                       ),
                                     ],
                                   ),
@@ -205,10 +285,45 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
                                   ),
                                 ),
                                 if (mostrarAcessibilidade) ...[
-                                  _buildSwitch('Texto com Alto Contraste', theme, textoAltoContraste, (v) => setState(() => textoAltoContraste = v)),
-                                  _buildSwitch('Texto Grande', theme, textoGrande, (v) => setState(() => textoGrande = v)),
+                                  _buildSwitch(
+                                    'Texto com Alto Contraste',
+                                    theme,
+                                    themeProvider.highContrast,
+                                    (v) => themeProvider.setHighContrast(v),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        Text('Tamanho do Texto', style: theme.textTheme.bodyMedium),
+                                        SliderTheme(
+                                          data: SliderTheme.of(context).copyWith(
+                                            trackHeight: 4,
+                                            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+                                            activeTrackColor: theme.colorScheme.primary,
+                                            inactiveTrackColor: theme.colorScheme.onSurface.withOpacity(0.2),
+                                            thumbColor: theme.colorScheme.primary,
+                                          ),
+                                          child: Slider(
+                                            value: themeProvider.textScale,
+                                            min: 0.9,
+                                            max: 1.6,
+                                            divisions: 7,
+                                            label: '${themeProvider.textScale.toStringAsFixed(1)}x',
+                                            onChanged: (v) => themeProvider.setTextScale(v),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                   _buildSwitch('Áudio Guiado', theme, audioGuiado, (v) => setState(() => audioGuiado = v)),
-                                  _buildSwitch('Modo Escuro', theme, modoEscuro, (v) => setState(() => modoEscuro = v)),
+                                  _buildSwitch(
+                                    'Modo Escuro',
+                                    theme,
+                                    themeProvider.isDark,
+                                    (v) => themeProvider.setDark(v),
+                                  ),
                                   _buildSwitch('Leitor de Tela', theme, leituraTela, (v) => setState(() => leituraTela = v)),
                                   _buildSwitch('Redução de Movimento', theme, reducaoMovimento, (v) => setState(() => reducaoMovimento = v)),
                                   _buildSwitch('Teclado Adaptado', theme, tecladoAdaptado, (v) => setState(() => tecladoAdaptado = v)),
@@ -216,22 +331,26 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
                                   _buildDropdown(
                                     'Modo Daltonismo',
                                     theme,
-                                    modoDaltonismoSelecionado,
-                                    ['Nenhum', 'Protanopia', 'Deuteranopia', 'Tritanopia', 'Monocromacia'],
-                                    (val) => setState(() => modoDaltonismoSelecionado = val ?? 'Nenhum'),
+                                    _cvdOptionFromType(themeProvider.colorVision),
+                                    const ['Nenhum', 'Protanopia', 'Deuteranopia', 'Tritanopia', 'Monocromacia'],
+                                    (val) {
+                                      final type = _cvdTypeFromOption(val ?? 'Nenhum');
+                                      themeProvider.setColorVision(type);
+                                      setState(() => modoDaltonismoSelecionado = val ?? 'Nenhum');
+                                    },
                                   ),
                                   _buildDropdown(
                                     'Fonte para Dislexia',
                                     theme,
                                     fonteDyslexiaSelecionada,
-                                    ['Nenhum', 'Arial', 'Comic Sans', 'OpenDyslexic'],
+                                    const ['Nenhum', 'Arial', 'Comic Sans', 'OpenDyslexic'],
                                     (val) => setState(() => fonteDyslexiaSelecionada = val ?? 'Nenhum'),
                                   ),
                                 ],
                                 const SizedBox(height: 30),
                                 Center(
                                   child: PixelButton(
-                                    onPressed: () async {
+                                      onPressed: () async {
                                       if (_formKey.currentState!.validate()) {
                                         await salvarPreferencias();
                                         ScaffoldMessenger.of(context).showSnackBar(
@@ -253,6 +372,8 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
                                       }
                                     },
                                     label: 'Cadastrar',
+                                    icon: Icons.rocket_launch_rounded,
+                                    iconRight: true,
                                     width: 220,
                                     height: 60,
                                   ),
@@ -260,6 +381,10 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
                                 const SizedBox(height: 16),
                                 Center(
                                   child: TextButton(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: theme.colorScheme.primary,
+                                      overlayColor: theme.colorScheme.primary.withOpacity(0.1),
+                                    ),
                                     onPressed: () {
                                       Navigator.push(
                                         context,
@@ -270,22 +395,15 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
                                       'Já tem conta? Entrar',
                                       style: theme.textTheme.bodyMedium?.copyWith(
                                         decoration: TextDecoration.underline,
-                                        color: theme.primaryColorDark,
+                                        color: theme.colorScheme.primary,
                                       ),
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -343,3 +461,5 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
     );
   }
 }
+
+

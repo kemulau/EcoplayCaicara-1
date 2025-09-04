@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'screens/cadastro.dart';
-import 'theme/retro.dart';
+import 'theme/theme_provider.dart';
 
 
 void main() {
-  runApp(const EcoplayCaicaraApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: const EcoplayCaicaraApp(),
+    ),
+  );
 }
 
 class EcoplayCaicaraApp extends StatelessWidget {
@@ -13,13 +18,24 @@ class EcoplayCaicaraApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Ecoplay Caiçara',
-      debugShowCheckedModeBanner: false,
-      theme: retroGameTheme.copyWith(
-        textTheme: GoogleFonts.pressStart2pTextTheme(),
+    final themeProvider = context.watch<ThemeProvider>();
+
+    return ColorFiltered(
+      colorFilter: themeProvider.colorBlindnessFilter,
+      child: MaterialApp(
+        title: 'Ecoplay Caiçara',
+        debugShowCheckedModeBanner: false,
+        theme: themeProvider.currentTheme,
+        builder: (context, child) {
+          final scale = themeProvider.textScale;
+          final mq = MediaQuery.of(context);
+          return MediaQuery(
+            data: mq.copyWith(textScaleFactor: scale),
+            child: child!,
+          );
+        },
+        home: const CadastroJogadorScreen(),
       ),
-      home: const CadastroJogadorScreen(),
     );
   }
 }

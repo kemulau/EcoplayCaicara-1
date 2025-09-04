@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/pixel_button.dart';
+import '../widgets/game_frame.dart';
 import 'cadastro.dart';
 import 'home.dart';
 
@@ -59,44 +60,17 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Login', style: theme.appBarTheme.titleTextStyle),
-        backgroundColor: theme.appBarTheme.backgroundColor,
-      ),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'lib/assets/images/background.png',
-              fit: BoxFit.cover,
-            ),
-          ),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return Center(
-                child: ScrollConfiguration(
-                  behavior: const ScrollBehavior()
-                      .copyWith(overscroll: false, scrollbars: false),
-                  child: SingleChildScrollView(
-                    physics: const ClampingScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth:
-                            constraints.maxWidth < 600 ? double.infinity : 600,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.85),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
+    return GameScaffold(
+      title: 'Login',
+      child: ScrollConfiguration(
+        behavior: const ScrollBehavior().copyWith(overscroll: false, scrollbars: false),
+        child: SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                               _buildTextField(
                                 'Email',
                                 theme,
@@ -140,12 +114,15 @@ class _LoginScreenState extends State<LoginScreen> {
                               const SizedBox(height: 16),
                               Center(
                                 child: TextButton(
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: theme.colorScheme.primary,
+                                    overlayColor: theme.colorScheme.primary.withOpacity(0.1),
+                                  ),
                                   onPressed: () {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) =>
-                                            const CadastroJogadorScreen(),
+                                        builder: (context) => const CadastroJogadorScreen(),
                                       ),
                                     );
                                   },
@@ -153,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     'Não tem conta? Cadastre-se',
                                     style: theme.textTheme.bodyMedium?.copyWith(
                                       decoration: TextDecoration.underline,
-                                      color: theme.primaryColorDark,
+                                      color: theme.colorScheme.primary,
                                     ),
                                   ),
                                 ),
@@ -161,14 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ],
                           ),
                         ),
-                      ),
                     ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
       ),
     );
   }

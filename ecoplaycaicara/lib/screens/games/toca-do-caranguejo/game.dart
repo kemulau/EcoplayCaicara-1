@@ -1,7 +1,8 @@
-import 'dart:async';
-import 'dart:math';
+import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import '../../../widgets/pixel_button.dart';
+import '../../../widgets/game_frame.dart';
+import 'flame_game.dart';
 import 'start.dart';
 
 class TocaGameScreen extends StatefulWidget {
@@ -12,179 +13,89 @@ class TocaGameScreen extends StatefulWidget {
 }
 
 class _TocaGameScreenState extends State<TocaGameScreen> {
-  int pontuacao = 0;
-  int tempoRestante = 60;
-  bool mostrarPopup = false;
-  int popupIndex = 0;
-  Offset caranguejoPosition = Offset.zero;
-  bool caranguejoPequeno = false;
-  bool mostrarAcaoPopup = false;
-  String mensagemAcao = '';
-
-  List<Offset> tocas = [];
-
-  final List<String> mensagens = [
-    '🦀 Os caranguejos ajudam a manter o solo do mangue saudável!',
-    '🌱 O manguezal é o berçário de muitas espécies marinhas!',
-    '🚯 Não jogue lixo no mangue. Preserve a natureza!'
-  ];
-
-  Timer? cronometro;
-  Timer? popupTimer;
-  Timer? moverCaranguejoTimer;
+  late final CrabGame _game;
 
   @override
   void initState() {
     super.initState();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final size = MediaQuery.of(context).size;
-      setState(() {
-        tocas = gerarTocas(size);
-        caranguejoPosition = tocas[Random().nextInt(tocas.length)];
-        caranguejoPequeno = Random().nextBool();
-      });
-
-      moverCaranguejoTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-        if (tempoRestante > 0) {
-          setState(() {
-            caranguejoPosition = tocas[Random().nextInt(tocas.length)];
-            caranguejoPequeno = Random().nextBool();
-          });
-        }
-      });
+    _game = CrabGame(onGameOver: () {
+      if (!mounted) return;
+      _game.overlays.add('GameOver');
     });
-
-    cronometro = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        tempoRestante--;
-        if (tempoRestante <= 0) {
-          cronometro?.cancel();
-          moverCaranguejoTimer?.cancel();
-          popupTimer?.cancel();
-        }
-      });
-    });
-
-    popupTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-      if (tempoRestante > 0) {
-        setState(() {
-          mostrarPopup = true;
-          popupIndex = (popupIndex + 1) % mensagens.length;
-        });
-        Future.delayed(const Duration(seconds: 4), () {
-          if (mounted) setState(() => mostrarPopup = false);
-        });
-      }
-    });
-  }
-
-  List<Offset> gerarTocas(Size size) {
-    return [
-      Offset(size.width * 0.12, size.height * 0.75),
-      Offset(size.width * 0.23, size.height * 0.72),
-      Offset(size.width * 0.34, size.height * 0.70),
-      Offset(size.width * 0.45, size.height * 0.69),
-      Offset(size.width * 0.56, size.height * 0.70),
-      Offset(size.width * 0.67, size.height * 0.72),
-      Offset(size.width * 0.78, size.height * 0.74),
-      Offset(size.width * 0.89, size.height * 0.76),
-      Offset(size.width * 0.17, size.height * 0.82),
-      Offset(size.width * 0.29, size.height * 0.80),
-      Offset(size.width * 0.41, size.height * 0.79),
-      Offset(size.width * 0.53, size.height * 0.79),
-      Offset(size.width * 0.65, size.height * 0.80),
-      Offset(size.width * 0.77, size.height * 0.82),
-      Offset(size.width * 0.89, size.height * 0.84),
-    ];
-  }
-
-  void _clicouNoCaranguejo() {
-    setState(() {
-      if (caranguejoPequeno) {
-        pontuacao -= 20;
-        mensagemAcao = '⚠️ Capturar caranguejo jovem prejudica o ciclo do mangue!';
-      } else {
-        pontuacao += 15;
-        mensagemAcao = '✅ Proteger o ciclo reprodutivo mantém o mangue vivo!';
-      }
-      mostrarAcaoPopup = true;
-      caranguejoPosition = tocas[Random().nextInt(tocas.length)];
-      caranguejoPequeno = Random().nextBool();
-    });
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) setState(() => mostrarAcaoPopup = false);
-    });
-  }
-
-  @override
-  void dispose() {
-    cronometro?.cancel();
-    popupTimer?.cancel();
-    moverCaranguejoTimer?.cancel();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final larguraBase = size.width;
-
-    return Scaffold(
-      body: Stack(
-        children: [
-          SizedBox(
-            width: size.width,
-            height: size.height,
-            child: Image.asset(
-              'lib/assets/games/toca-do-caranguejo/background.png',
-              fit: BoxFit.cover,
-            ),
+    return GameScaffold(
+      title: 'Toca do Caranguejo',
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: GameWidget(
+            game: _game,
+            overlayBuilderMap: {
+              'Hud': (context, game) => _HudOverlay(game as CrabGame),
+              'Popup': (context, game) => _PopupOverlay(game as CrabGame),
+              'ActionPopup': (context, game) => _ActionPopupOverlay(game as CrabGame),
+              'GameOver': (context, game) => _GameOverOverlay(game as CrabGame),
+            },
+            initialActiveOverlays: const ['Hud'],
           ),
+        ),
+      ),
+    );
+  }
+}
 
-          Positioned(top: 20, left: 20, child: _infoBox('🎯 Pontuação: $pontuacao')),
-          Positioned(top: 20, right: 20, child: _infoBox('🕒 Tempo: $tempoRestante s')),
+class _HudOverlay extends StatelessWidget {
+  const _HudOverlay(this.game);
+  final CrabGame game;
 
-          Positioned(
-            top: 80,
-            right: 20,
-            child: Column(
-              children: [
-                _iconButton(Icons.volume_up),
-                const SizedBox(height: 8),
-                _iconButton(Icons.settings),
-              ],
-            ),
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.expand(
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTapDown: (details) => game.handleTap(details.localPosition),
+        child: Stack(
+          children: [
+        // Score
+        Positioned(
+          top: 20,
+          left: 20,
+          child: ValueListenableBuilder<int>(
+            valueListenable: game.score,
+            builder: (context, score, _) => _infoBox('🎯 Pontuação: $score'),
           ),
-
-          if (tempoRestante > 0)
-            Positioned(
-              left: caranguejoPosition.dx,
-              top: caranguejoPosition.dy,
-              child: GestureDetector(
-                onTap: _clicouNoCaranguejo,
-                child: Image.asset(
-                  'lib/assets/games/toca-do-caranguejo/caranguejo.png',
-                  width: caranguejoPequeno ? larguraBase * 0.05 : larguraBase * 0.08,
-                ),
-              ),
-            ),
-
-          if (mostrarPopup && tempoRestante > 0)
-            Center(
-              child: _popupMensagem(mensagens[popupIndex]),
-            ),
-
-          if (mostrarAcaoPopup && tempoRestante > 0)
-            Center(
-              child: _popupMensagem(mensagemAcao),
-            ),
-
-          if (tempoRestante <= 0)
-            Center(
-              child: _fimDeJogoDialog(),
-            ),
-        ],
+        ),
+        // Time
+        Positioned(
+          top: 20,
+          right: 20,
+          child: ValueListenableBuilder<int>(
+            valueListenable: game.timeLeft,
+            builder: (context, time, _) => _infoBox('🕒 Tempo: $time s'),
+          ),
+        ),
+        // Periodic popup
+        Positioned.fill(
+          child: ValueListenableBuilder<String?>(
+            valueListenable: game.popupMessage,
+            builder: (context, message, _) =>
+                message == null ? const SizedBox.shrink() : Center(child: _popupMensagem(message)),
+          ),
+        ),
+        // Action popup
+        Positioned.fill(
+          child: ValueListenableBuilder<String?>(
+            valueListenable: game.actionMessage,
+            builder: (context, message, _) =>
+                message == null ? const SizedBox.shrink() : Center(child: _popupMensagem(message)),
+          ),
+        ),
+          ],
+        ),
       ),
     );
   }
@@ -204,21 +115,6 @@ class _TocaGameScreenState extends State<TocaGameScreen> {
           fontWeight: FontWeight.bold,
           color: Colors.brown,
         ),
-      ),
-    );
-  }
-
-  Widget _iconButton(IconData icon) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        border: Border.all(color: Colors.brown),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: IconButton(
-        iconSize: 24,
-        icon: Icon(icon, color: Colors.brown),
-        onPressed: () {},
       ),
     );
   }
@@ -250,60 +146,86 @@ class _TocaGameScreenState extends State<TocaGameScreen> {
       ),
     );
   }
+}
 
-  Widget _fimDeJogoDialog() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      margin: const EdgeInsets.symmetric(horizontal: 32),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.brown, width: 4),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.5),
-            offset: const Offset(4, 4),
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            '🏁 Fim de Jogo!',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.brown,
+class _PopupOverlay extends StatelessWidget {
+  const _PopupOverlay(this.game);
+  final CrabGame game;
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+class _ActionPopupOverlay extends StatelessWidget {
+  const _ActionPopupOverlay(this.game);
+  final CrabGame game;
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+class _GameOverOverlay extends StatelessWidget {
+  const _GameOverOverlay(this.game);
+  final CrabGame game;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        margin: const EdgeInsets.symmetric(horizontal: 32),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.95),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.brown, width: 4),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.5),
+              offset: const Offset(4, 4),
+              blurRadius: 8,
             ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '🎯 Sua pontuação: $pontuacao',
-            style: const TextStyle(fontSize: 18, color: Colors.black87),
-          ),
-          const SizedBox(height: 24),
-          PixelButton(
-            label: '🔁 Jogar Novamente',
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const TocaGameScreen()),
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          PixelButton(
-            label: '🏠 Voltar ao Início',
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const TocaStartScreen()),
-              );
-            },
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              '🏁 Fim de Jogo!',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.brown,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ValueListenableBuilder<int>(
+              valueListenable: game.score,
+              builder: (context, score, _) => Text(
+                '🎯 Sua pontuação: $score',
+                style: const TextStyle(fontSize: 18, color: Colors.black87),
+              ),
+            ),
+            const SizedBox(height: 24),
+            PixelButton(
+              label: '🔁 Jogar Novamente',
+              onPressed: () {
+                // Reset the game by replacing the current route
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TocaGameScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            PixelButton(
+              label: '🏠 Voltar ao Início',
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TocaStartScreen()),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

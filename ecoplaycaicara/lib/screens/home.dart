@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/game_frame.dart';
 import 'games/toca-do-caranguejo/start.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -29,55 +30,36 @@ class HomeScreen extends StatelessWidget {
     final isMobile = screenWidth < 600;
     final isTablet = screenWidth >= 600 && screenWidth < 1000;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F0E1),
-      body: SafeArea(
-        child: Center(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isLargeScreen = constraints.maxWidth >= 1000;
-              final cardWidth = isMobile
-                  ? screenWidth * 0.9
-                  : isTablet
+    return GameScaffold(
+      title: 'Ecoplay Caiçara',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isLargeScreen = constraints.maxWidth >= 1000;
+          final cardWidth = isMobile
+              ? screenWidth * 0.9
+              : isTablet
                   ? screenWidth * 0.42
-                  : screenWidth * 0.33; // 2 colunas com 24px de espaçamento entre e margens
+                  : screenWidth * 0.33;
+          final cardHeight = cardWidth * 0.5625;
 
-              final cardHeight = cardWidth * 0.5625;
-
-              return SingleChildScrollView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
-                child: Column(
-                  children: [
-                    Text(
-                      'Ecoplay Caiçara',
-                      style: GoogleFonts.pressStart2p(
-                        fontSize: isMobile ? 16 : 22,
-                        color: const Color(0xFF8B4B35),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Wrap(
-                      spacing: 24,
-                      runSpacing: 24,
-                      alignment: WrapAlignment.center,
-                      children: cards.map((card) {
-                        return GameCard(
-                          imagePath: card['image']!,
-                          title: card['title']!,
-                          molduraPath: 'lib/assets/cards/moldura.png',
-                          width: cardWidth,
-                          height: cardHeight,
-                        );
-                      }).toList(),
-                    ),
-                  
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+            child: Wrap(
+              spacing: 24,
+              runSpacing: 24,
+              alignment: WrapAlignment.center,
+              children: cards.map((card) {
+                return GameCard(
+                  imagePath: card['image']!,
+                  title: card['title']!,
+                  molduraPath: 'lib/assets/cards/moldura.png',
+                  width: cardWidth,
+                  height: cardHeight,
+                );
+              }).toList(),
+            ),
+          );
+        },
       ),
     );
   }
