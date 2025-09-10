@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/pixel_button.dart';
 import '../widgets/game_frame.dart';
+import '../widgets/link_button.dart';
+import '../app_scroll_behavior.dart';
 import 'cadastro.dart';
 import 'home.dart';
 
@@ -63,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return GameScaffold(
       title: 'Login',
       child: ScrollConfiguration(
-        behavior: const ScrollBehavior().copyWith(overscroll: false, scrollbars: false),
+        behavior: const AppScrollBehavior(),
         child: SingleChildScrollView(
           physics: const ClampingScrollPhysics(),
           child: Form(
@@ -113,11 +115,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               const SizedBox(height: 16),
                               Center(
-                                child: TextButton(
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: theme.colorScheme.primary,
-                                    overlayColor: theme.colorScheme.primary.withOpacity(0.1),
-                                  ),
+                                child: LinkButton(
+                                  label: 'Não tem conta? Cadastre-se',
+                                  alignment: Alignment.center,
                                   onPressed: () {
                                     Navigator.push(
                                       context,
@@ -126,13 +126,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     );
                                   },
-                                  child: Text(
-                                    'Não tem conta? Cadastre-se',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      decoration: TextDecoration.underline,
-                                      color: theme.colorScheme.primary,
-                                    ),
-                                  ),
                                 ),
                               ),
                             ],

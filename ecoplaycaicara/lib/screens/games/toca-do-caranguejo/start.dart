@@ -1,52 +1,81 @@
 import 'package:flutter/material.dart';
 import '../../../widgets/pixel_button.dart';
 import '../../../widgets/game_frame.dart';
-import 'game.dart';
+import 'game.dart' deferred as game;
+import 'tutorial.dart' deferred as tutorial;
+import '../../../theme/game_styles.dart';
 
 class TocaStartScreen extends StatelessWidget {
   const TocaStartScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    const textoEscuro = Color(0xFF3B2C1A); // Marrom escuro para melhor leitura
-
     return GameScaffold(
       title: 'Toca do Caranguejo',
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const GameSectionTitle('Como Jogar'),
-            const SizedBox(height: 12),
-            Text(
-              'Clique nos caranguejos para capturá-los 🎯, mas preste atenção ao tamanho e ao período reprodutivo! 🦀\n\n'
-              '❌ Capturar caranguejos em defeso ou muito pequenos gera -20 pontos e mostra uma explicação sobre a importância da preservação.\n\n'
-              '✅ Se você respeitar o defeso ou evitar os jovens, recebe +15 pontos e um aviso: “Proteger o ciclo reprodutivo mantém o mangue vivo!” 🌱\n\n'
-              '🧹 Ao clicar em objetos de lixo, como latas e sacolas, você ajuda a limpar o mangue e ganha +20 pontos!\n\n'
-              '📚 Leia as curiosidades e jogue por 60 segundos ⏱️!',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: textoEscuro),
+      backgroundAsset: 'assets/images/background-toca.png',
+      mobileBackgroundAsset: 'assets/images/background-toca-mobile.png',
+      fill: false,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxW = constraints.maxWidth;
+          final btnWidth = (maxW * 0.72).clamp(200.0, 320.0);
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Escolha uma opção',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 10),
+                PixelButton(
+                  label: 'TUTORIAL',
+                  icon: Icons.menu_book_rounded,
+                  iconRight: true,
+                  width: btnWidth,
+                  height: 52,
+                  onPressed: () async {
+                    await tutorial.loadLibrary();
+                    // ignore: use_build_context_synchronously
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => tutorial.TocaTutorialScreen()),
+                    );
+                  },
+                ),
+                const SizedBox(height: 6),
+                Builder(builder: (context) {
+                  final styles = Theme.of(context).extension<GameStyles>();
+                  return Text('Aprenda as regras rapidamente', style: styles?.hint);
+                }),
+                const SizedBox(height: 12),
+                PixelButton(
+                  label: 'JOGAR',
+                  icon: Icons.play_arrow_rounded,
+                  iconRight: true,
+                  width: btnWidth,
+                  height: 52,
+                  onPressed: () async {
+                    await game.loadLibrary();
+                    // ignore: use_build_context_synchronously
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => game.TocaGameScreen()),
+                    );
+                  },
+                ),
+                const SizedBox(height: 6),
+                Builder(builder: (context) {
+                  final styles = Theme.of(context).extension<GameStyles>();
+                  return Text('Ir direto para o jogo', style: styles?.hint);
+                }),
+              ],
             ),
-            const SizedBox(height: 28),
-            Center(
-              child: PixelButton(
-                label: 'Começar Jogo',
-                icon: Icons.play_arrow_rounded,
-                iconRight: true,
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const TocaGameScreen()),
-                  );
-                },
-                width: 220,
-                height: 56,
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 }
+

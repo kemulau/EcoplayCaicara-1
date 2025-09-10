@@ -2,6 +2,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import '../../../widgets/pixel_button.dart';
 import '../../../widgets/game_frame.dart';
+import '../../../widgets/typing_text.dart';
 import 'flame_game.dart';
 import 'start.dart';
 
@@ -78,20 +79,44 @@ class _HudOverlay extends StatelessWidget {
             builder: (context, time, _) => _infoBox('🕒 Tempo: $time s'),
           ),
         ),
-        // Periodic popup
+        // Sound toggle button (SFX on/off)
+        Positioned(
+          top: 60,
+          right: 20,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: game.sfxEnabled,
+            builder: (context, enabled, _) => _hudIconButton(
+              icon: enabled ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+              onPressed: () => game.sfxEnabled.value = !enabled,
+            ),
+          ),
+        ),
+        // Periodic popup (typing + skip)
         Positioned.fill(
           child: ValueListenableBuilder<String?>(
             valueListenable: game.popupMessage,
-            builder: (context, message, _) =>
-                message == null ? const SizedBox.shrink() : Center(child: _popupMensagem(message)),
+            builder: (context, message, _) => message == null
+                ? const SizedBox.shrink()
+                : Center(
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: game.sfxEnabled,
+                      builder: (context, enabled, __) => _popupMensagemDigitando(message, enableSound: enabled),
+                    ),
+                  ),
           ),
         ),
-        // Action popup
+        // Action popup (typing + skip)
         Positioned.fill(
           child: ValueListenableBuilder<String?>(
             valueListenable: game.actionMessage,
-            builder: (context, message, _) =>
-                message == null ? const SizedBox.shrink() : Center(child: _popupMensagem(message)),
+            builder: (context, message, _) => message == null
+                ? const SizedBox.shrink()
+                : Center(
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: game.sfxEnabled,
+                      builder: (context, enabled, __) => _popupMensagemDigitando(message, enableSound: enabled),
+                    ),
+                  ),
           ),
         ),
           ],
@@ -143,6 +168,52 @@ class _HudOverlay extends StatelessWidget {
           color: Colors.brown,
         ),
         textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  Widget _popupMensagemDigitando(String texto, {required bool enableSound}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.brown, width: 3),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 6,
+            offset: const Offset(4, 4),
+            color: Colors.black.withOpacity(0.4),
+          ),
+        ],
+      ),
+      child: TypingText(
+        text: texto,
+        charDelay: const Duration(milliseconds: 22),
+        clickEvery: 2,
+        enableSound: enableSound,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.brown,
+        ),
+      ),
+    );
+  }
+
+  Widget _hudIconButton({required IconData icon, required VoidCallback onPressed}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        border: Border.all(color: Colors.brown),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: IconButton(
+        iconSize: 24,
+        onPressed: onPressed,
+        icon: Icon(icon, color: Colors.brown),
+        tooltip: 'Som',
       ),
     );
   }

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'app_scroll_behavior.dart';
 import 'screens/cadastro.dart';
+import 'screens/home.dart';
+import 'screens/book_demo.dart';
 import 'theme/theme_provider.dart';
-
 
 void main() {
   runApp(
@@ -26,6 +28,7 @@ class EcoplayCaicaraApp extends StatelessWidget {
         title: 'Ecoplay Caiçara',
         debugShowCheckedModeBanner: false,
         theme: themeProvider.currentTheme,
+        scrollBehavior: const AppScrollBehavior(),
         builder: (context, child) {
           final scale = themeProvider.textScale;
           final mq = MediaQuery.of(context);
@@ -34,9 +37,9 @@ class EcoplayCaicaraApp extends StatelessWidget {
             child: child!,
           );
         },
+        // Ajuste: inicia no cadastro
         home: const CadastroJogadorScreen(),
       ),
     );
   }
 }
-

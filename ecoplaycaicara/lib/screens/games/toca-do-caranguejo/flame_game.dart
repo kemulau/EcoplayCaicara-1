@@ -14,6 +14,7 @@ class CrabGame extends FlameGame {
   final ValueNotifier<int> timeLeft = ValueNotifier<int>(60);
   final ValueNotifier<String?> popupMessage = ValueNotifier<String?>(null);
   final ValueNotifier<String?> actionMessage = ValueNotifier<String?>(null);
+  final ValueNotifier<bool> sfxEnabled = ValueNotifier<bool>(true);
 
   // Callback to notify Flutter UI when game ends
   final VoidCallback onGameOver;
@@ -39,10 +40,13 @@ class CrabGame extends FlameGame {
     await super.onLoad();
 
     // Use default viewport; positions are computed relative to size
+    // Flame por padrão prefixa 'assets/images/'. carregando a partir de 'assets/'
+    // removemos o prefixo para carregar os caminhos completos informados.
+    images.prefix = 'assets/';
 
     // Background full screen
     final backgroundSprite = await loadSprite(
-      'lib/assets/games/toca-do-caranguejo/background.png',
+      'games/toca-do-caranguejo/background.png',
     );
     _background = SpriteComponent(sprite: backgroundSprite, size: size)
       ..position = Vector2.zero();
@@ -52,7 +56,7 @@ class CrabGame extends FlameGame {
 
     // Crab
     final crabSprite = await loadSprite(
-      'lib/assets/games/toca-do-caranguejo/caranguejo.png',
+      'games/toca-do-caranguejo/caranguejo.png',
     );
     _crab = CrabComponent(sprite: crabSprite);
     _placeCrab(randomizeSize: true);
@@ -172,6 +176,7 @@ class CrabGame extends FlameGame {
     timeLeft.dispose();
     popupMessage.dispose();
     actionMessage.dispose();
+    sfxEnabled.dispose();
     super.onRemove();
   }
 }
@@ -180,3 +185,6 @@ class CrabComponent extends SpriteComponent {
   CrabComponent({required super.sprite}) : super(priority: 10);
   bool isSmall = false;
 }
+
+
+

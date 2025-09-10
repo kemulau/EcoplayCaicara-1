@@ -1,40 +1,97 @@
 import 'package:flutter/material.dart';
+import '../theme/game_chrome.dart';
 
 class GameScaffold extends StatelessWidget {
-  const GameScaffold({super.key, required this.title, required this.child});
+  const GameScaffold({
+    super.key,
+    required this.title,
+    required this.child,
+    this.fill = true,
+    this.backgroundAsset,
+    this.mobileBackgroundAsset,
+    this.mobileBreakpoint = 600,
+    this.panelPadding,
+  });
 
   final String title;
   final Widget child;
+  final bool fill;
+  // Permite personalizar o fundo e um fundo específico para telas pequenas.
+  final String? backgroundAsset;
+  final String? mobileBackgroundAsset;
+  final double mobileBreakpoint;
+  // Permite personalizar o padding interno do painel branco.
+  final EdgeInsets? panelPadding;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final media = MediaQuery.of(context);
+    final screenWidth = media.size.width;
+    // Max content width used for desktop/big screens (keeps look consistent beyond baseline).
+    const double desktopPanelMaxWidth = 1200.0;
+    // Max panel height when not filling on large screens (keeps look consistent vertically too).
+    const double desktopPanelMaxHeight = 760.0;
+    // Fundo padrão do app
+    const String defaultBackground = 'assets/images/background.png';
+    // Escolhe o fundo considerando breakpoint para mobile
+    final String chosenBackground =
+        (screenWidth <= mobileBreakpoint && mobileBackgroundAsset != null)
+            ? mobileBackgroundAsset!
+            : (backgroundAsset ?? defaultBackground);
+
+    // Ajuste de decode para imagem de fundo proporcional à largura da tela
+    final int bgCacheWidth = (screenWidth * media.devicePixelRatio).round();
 
     return Scaffold(
       body: Stack(
         children: [
           Positioned.fill(
             child: Image.asset(
-              'lib/assets/images/background.png',
+              chosenBackground,
               fit: BoxFit.cover,
+              cacheWidth: bgCacheWidth,
+              filterQuality: FilterQuality.low,
             ),
           ),
           Center(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final maxW = constraints.maxWidth < 1100 ? constraints.maxWidth : 1000.0;
+                // Congela a largura do conteúdo quando há espaço para 1200px.
+                final bool hasRoomForDesktop = constraints.maxWidth >= desktopPanelMaxWidth;
+                final double maxW = hasRoomForDesktop
+                    ? desktopPanelMaxWidth
+                    : (constraints.maxWidth < desktopPanelMaxWidth
+                        ? constraints.maxWidth
+                        : desktopPanelMaxWidth);
+                // Limita a altura do painel para evitar overflow em telas baixas,
+                // mas permite crescer até um teto dinâmico.
+                // Permite mais área útil para o conteúdo em telas médias
+                // evitando cortar listas/cartões (especialmente 2 linhas de 16:9).
+                final double maxPanelHeight = (constraints.maxHeight - 40)
+                    .clamp(260.0, hasRoomForDesktop ? desktopPanelMaxHeight : double.infinity)
+                    .toDouble();
+                Widget panel = GamePanel(
+                  child: child,
+                  padding: panelPadding,
+                );
+                if (!fill) {
+                  panel = ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: maxPanelHeight),
+                    child: panel,
+                  );
+                }
+
                 return ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: maxW),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: SafeArea(
                       child: Column(
-                        mainAxisSize: MainAxisSize.max,
+                        mainAxisSize: fill ? MainAxisSize.max : MainAxisSize.min,
                         children: [
                           _HeaderBar(title: title),
                           const SizedBox(height: 8),
-                          Expanded(child: GamePanel(child: child)),
+                          fill ? Expanded(child: panel) : Flexible(child: panel),
                         ],
                       ),
                     ),
@@ -50,25 +107,31 @@ class GameScaffold extends StatelessWidget {
 }
 
 class GamePanel extends StatelessWidget {
-  const GamePanel({super.key, required this.child});
+  const GamePanel({super.key, required this.child, this.padding});
   final Widget child;
+  final EdgeInsets? padding;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final chrome = Theme.of(context).extension<GameChrome>();
 
     return Container(
       decoration: BoxDecoration(
-        color: (isDark ? scheme.surface : scheme.background).withOpacity(0.86),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: scheme.onSurface.withOpacity(0.25), width: 2),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.35), blurRadius: 18, offset: const Offset(0, 8)),
-        ],
+        color: chrome?.panelBackground ??
+            (Theme.of(context).brightness == Brightness.dark
+                    ? scheme.surface
+                    : scheme.background)
+                .withOpacity(0.86),
+        borderRadius: BorderRadius.circular(chrome?.panelRadius ?? 18),
+        border: Border.all(color: chrome?.panelBorder ?? scheme.onSurface.withOpacity(0.25), width: 2),
+        boxShadow: chrome?.panelShadow ??
+            [
+              BoxShadow(color: Colors.black.withOpacity(0.35), blurRadius: 18, offset: const Offset(0, 8)),
+            ],
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        padding: padding ?? const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         child: child,
       ),
     );
@@ -104,28 +167,63 @@ class _HeaderBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-      decoration: BoxDecoration(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            scheme.primary.withOpacity(0.95),
-            scheme.primary.withOpacity(0.85),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.35), blurRadius: 18, offset: const Offset(0, 8)),
-        ],
-      ),
-      child: Center(
-        child: Text(
-          title,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(color: scheme.onPrimary),
-        ),
-      ),
+    final chrome = Theme.of(context).extension<GameChrome>();
+    // Quebra gentil do título em telas estreitas para evitar áreas vazias grandes
+    String finalTitle = title;
+    final width = MediaQuery.of(context).size.width;
+    if (width < 520 && title.contains(' ')) {
+      final parts = title.split(' ');
+      if (parts.length > 1) {
+        finalTitle = parts.sublist(0, parts.length - 1).join(' ') + '\n' + parts.last;
+      }
+    }
+    final bool twoLines = finalTitle.contains('\n');
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Limita a barra do título para acompanhar o bloco de conteúdo abaixo.
+        // Fica bem menor em telas grandes, aproximando do tamanho do painel interno.
+        final available = constraints.maxWidth - 48; // margem lateral do painel
+        double maxHeader = available;
+        if (maxHeader > 420) maxHeader = 420; // teto compacto
+        if (maxHeader < 220) maxHeader = 220; // piso para caber o texto
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxHeader),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 18, vertical: twoLines ? 12 : 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(chrome?.panelRadius ?? 16),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    (chrome?.buttonGradientTop ?? scheme.primary.withOpacity(0.92)),
+                    (chrome?.buttonGradientBottom ?? scheme.primary.withOpacity(0.82)),
+                  ],
+                ),
+                boxShadow: chrome?.panelShadow ?? [
+                  BoxShadow(color: Colors.black.withOpacity(0.28), blurRadius: 16, offset: const Offset(0, 7)),
+                  BoxShadow(color: Colors.white.withOpacity(0.08), blurRadius: 0, offset: const Offset(0, 1)),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  finalTitle,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: scheme.onPrimary,
+                        letterSpacing: 1.0,
+                      ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  softWrap: true,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
+

@@ -8,7 +8,9 @@ import '../theme/theme_provider.dart';
 import '../theme/color_blindness.dart';
 import '../widgets/pixel_button.dart';
 import '../widgets/game_frame.dart';
+import '../app_scroll_behavior.dart';
 import 'home.dart';
+import '../widgets/link_button.dart';
 import 'login.dart';
 
 class CadastroJogadorScreen extends StatefulWidget {
@@ -40,12 +42,12 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
   String fonteDyslexiaSelecionada = 'Nenhum';
 
   final List<String> avatares = [
-    'lib/assets/avatares/1.png',
-    'lib/assets/avatares/2.png',
-    'lib/assets/avatares/3.png',
-    'lib/assets/avatares/caranguejo-uca.png',
-    'lib/assets/avatares/jaguatirica.png',
-    'lib/assets/avatares/guara-vermelho.png',
+    'assets/avatares/1.png',
+    'assets/avatares/2.png',
+    'assets/avatares/3.png',
+    'assets/avatares/caranguejo-uca.png',
+    'assets/avatares/jaguatirica.png',
+    'assets/avatares/guara-vermelho.png',
   ];
 
   int avatarIndex = 0;
@@ -55,6 +57,13 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
     super.initState();
     avatar = avatares[0];
     _restoreCustomAvatar();
+    // Inicializa dropdown da fonte conforme ThemeProvider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final tp = context.read<ThemeProvider>();
+      setState(() {
+        fonteDyslexiaSelecionada = fontToStorage(tp.accessibilityFont);
+      });
+    });
   }
 
   Future<void> _restoreCustomAvatar() async {
@@ -117,7 +126,7 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
     await prefs.setBool('tecladoAdaptado', tecladoAdaptado);
 
     await prefs.setString('modoDaltonismo', _cvdOptionFromType(themeProvider.colorVision));
-    await prefs.setString('fonteDislexia', fonteDyslexiaSelecionada);
+    await prefs.setString('fonteDislexia', fontToStorage(themeProvider.accessibilityFont));
   }
 
   // Mapeamento entre opções do dropdown e enum do ThemeProvider
@@ -163,7 +172,7 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
     return GameScaffold(
       title: 'Cadastro de Jogador',
       child: ScrollConfiguration(
-        behavior: const ScrollBehavior().copyWith(overscroll: false, scrollbars: false),
+        behavior: const AppScrollBehavior(),
         child: SingleChildScrollView(
           physics: const ClampingScrollPhysics(),
           child: Padding(
@@ -342,9 +351,13 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
                                   _buildDropdown(
                                     'Fonte para Dislexia',
                                     theme,
-                                    fonteDyslexiaSelecionada,
+                                    fontToStorage(themeProvider.accessibilityFont),
                                     const ['Nenhum', 'Arial', 'Comic Sans', 'OpenDyslexic'],
-                                    (val) => setState(() => fonteDyslexiaSelecionada = val ?? 'Nenhum'),
+                                    (val) {
+                                      final choice = fontFromStorage(val);
+                                      themeProvider.setAccessibilityFont(choice);
+                                      setState(() => fonteDyslexiaSelecionada = val ?? 'Nenhum');
+                                    },
                                   ),
                                 ],
                                 const SizedBox(height: 30),
@@ -380,24 +393,15 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 Center(
-                                  child: TextButton(
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: theme.colorScheme.primary,
-                                      overlayColor: theme.colorScheme.primary.withOpacity(0.1),
-                                    ),
+                                  child: LinkButton(
+                                    label: 'Já tem conta? Entrar',
+                                    alignment: Alignment.center,
                                     onPressed: () {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(builder: (_) => const LoginScreen()),
                                       );
                                     },
-                                    child: Text(
-                                      'Já tem conta? Entrar',
-                                      style: theme.textTheme.bodyMedium?.copyWith(
-                                        decoration: TextDecoration.underline,
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                    ),
                                   ),
                                 ),
                 ],
@@ -461,5 +465,6 @@ class _CadastroJogadorScreenState extends State<CadastroJogadorScreen> {
     );
   }
 }
+
 
 

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../theme/game_chrome.dart';
 
 // Modern game-style button with gradient, hover/press animations, and glow
 class PixelButton extends StatefulWidget {
@@ -31,15 +31,18 @@ class _PixelButtonState extends State<PixelButton> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final chrome = Theme.of(context).extension<GameChrome>();
     final primary = scheme.primary;
-    final top = _tint(primary, 0.18);
-    final bottom = _shade(primary, 0.20);
+    final top = chrome?.buttonGradientTop ?? _tint(primary, 0.18);
+    final bottom = chrome?.buttonGradientBottom ?? _shade(primary, 0.20);
 
     final scale = _isPressed
         ? 0.97
         : (_isHovered ? 1.03 : 1.0);
 
-    final borderColor = _isPressed ? bottom : _shade(primary, 0.40);
+    final borderColor = _isPressed
+        ? bottom
+        : (chrome?.buttonBorder ?? _shade(primary, 0.40));
     final onPrimary = scheme.onPrimary;
 
     return MouseRegion(
@@ -66,16 +69,19 @@ class _PixelButtonState extends State<PixelButton> {
                 end: Alignment.bottomCenter,
                 colors: _isPressed ? [bottom, primary] : [top, bottom],
               ),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius:
+                  BorderRadius.circular(chrome?.buttonRadius ?? 12),
               border: Border.all(color: borderColor, width: 2),
               boxShadow: [
                 if (!_isPressed)
-                  BoxShadow(
-                    offset: const Offset(0, 8),
-                    blurRadius: 18,
-                    spreadRadius: 0,
-                    color: Colors.black.withOpacity(0.35),
-                  ),
+                  ...(chrome?.buttonShadow ??
+                      [
+                        BoxShadow(
+                          offset: const Offset(0, 8),
+                          blurRadius: 18,
+                          color: Colors.black.withOpacity(0.35),
+                        )
+                      ]),
                 // subtle neon edge
                 if (_isHovered)
                   BoxShadow(
@@ -168,18 +174,20 @@ class _PixelButtonState extends State<PixelButton> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.pressStart2p(
-                              fontSize: 12,
-                              letterSpacing: 1.2,
-                              color: onPrimary,
-                              shadows: [
-                                Shadow(
-                                  offset: const Offset(0, 1),
-                                  blurRadius: 0,
-                                  color: Colors.black.withOpacity(0.35),
+                            // Usa o textTheme para respeitar fontes acessíveis (ex.: OpenDyslexic)
+                            style: (Theme.of(context).textTheme.labelLarge ?? const TextStyle())
+                                .copyWith(
+                                  fontSize: 12,
+                                  letterSpacing: 1.2,
+                                  color: onPrimary,
+                                  shadows: [
+                                    Shadow(
+                                      offset: const Offset(0, 1),
+                                      blurRadius: 0,
+                                      color: Colors.black54,
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
                           ),
                         ),
                         if (widget.iconRight && widget.icon != null) ...[

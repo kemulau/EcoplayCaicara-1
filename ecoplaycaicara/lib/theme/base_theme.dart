@@ -1,33 +1,35 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+// Removemos GoogleFonts para evitar fetch em Web.
 
-// Earthy, game-oriented base theme. Final colors are refined by ThemeProvider.
-final ThemeData retroGameTheme = ThemeData(
+// Base visual do app (tons terrosos). As variações e ajustes finos
+// são aplicados via ThemeProvider (ColorScheme.fromSeed, highContrast etc.).
+final ThemeData baseGameTheme = ThemeData(
   brightness: Brightness.light,
-  // Warm parchment-like background for light mode
   scaffoldBackgroundColor: const Color(0xFFF3EEE6),
-  primaryColor: const Color(0xFF7A5230), // saddle brown
+  primaryColor: const Color(0xFF7A5230),
 
-  textTheme: GoogleFonts.pressStart2pTextTheme().copyWith(
-    titleLarge: GoogleFonts.pressStart2p(
+  // Use fonte local 'PressStart2P' para evitar requisições externas no Web.
+  fontFamily: 'PressStart2P',
+  textTheme: const TextTheme(
+    // Estes estilos são base; ThemeProvider ajusta cores posteriormente.
+    titleLarge: TextStyle(
       fontSize: 18,
-      color: const Color(0xFF523823),
+      color: Color(0xFF523823),
+      fontFamily: 'PressStart2P',
     ),
-    bodyMedium: GoogleFonts.pressStart2p(
+    bodyMedium: TextStyle(
       fontSize: 12,
-      color: const Color(0xFF2B241E),
+      color: Color(0xFF2B241E),
+      fontFamily: 'PressStart2P',
     ),
   ),
 
-  appBarTheme: AppBarTheme(
+  appBarTheme: const AppBarTheme(
     backgroundColor: const Color(0xFF6D4A2F),
     foregroundColor: Colors.white,
     elevation: 0,
     centerTitle: true,
-    titleTextStyle: GoogleFonts.pressStart2p(
-      fontSize: 14,
-      color: Colors.white,
-    ),
+    titleTextStyle: TextStyle(fontFamily: 'PressStart2P', fontSize: 14, color: Colors.white),
     shape: const Border(
       bottom: BorderSide(color: Color(0xFF3F2A1D), width: 4),
     ),
@@ -36,7 +38,7 @@ final ThemeData retroGameTheme = ThemeData(
   inputDecorationTheme: InputDecorationTheme(
     filled: true,
     fillColor: Colors.white.withOpacity(0.95),
-    labelStyle: GoogleFonts.pressStart2p(fontSize: 10, color: Color(0xFF3A2C20)),
+    labelStyle: const TextStyle(fontFamily: 'PressStart2P', fontSize: 10, color: Color(0xFF3A2C20)),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(4),
       borderSide: const BorderSide(color: Color(0xFF6B4E33), width: 2),
@@ -47,7 +49,7 @@ final ThemeData retroGameTheme = ThemeData(
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(4),
-      borderSide: const BorderSide(color: Color(0xFFD29B59), width: 2), // sand highlight
+      borderSide: const BorderSide(color: Color(0xFFD29B59), width: 2),
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(4),
@@ -75,7 +77,7 @@ final ThemeData retroGameTheme = ThemeData(
       backgroundColor: const Color(0xFF6D4A2F),
       foregroundColor: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-      textStyle: GoogleFonts.pressStart2p(fontSize: 12),
+      textStyle: const TextStyle(fontFamily: 'PressStart2P', fontSize: 12),
       elevation: 6,
       shadowColor: const Color(0xFF3F2A1D),
       shape: RoundedRectangleBorder(
