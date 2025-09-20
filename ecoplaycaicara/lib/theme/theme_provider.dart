@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'color_blindness.dart';
@@ -31,24 +32,32 @@ class ThemeProvider with ChangeNotifier {
 
   // Carregar preferências
   Future<void> loadPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    // Migração: usa chaves antigas se as novas não existirem
-    isDark = prefs.getBool(_kDark) ?? prefs.getBool('modoEscuro') ?? false;
-    highContrast =
-        prefs.getBool(_kHighContrast) ?? prefs.getBool('textoAltoContraste') ?? false;
-    largeText = prefs.getBool(_kLargeText) ?? prefs.getBool('textoGrande') ?? false;
-    textScale = prefs.getDouble(_kTextScale) ?? (largeText ? 1.3 : 1.0);
-    colorVision = cvdFromStorage(
-      prefs.getString(_kCvdType) ?? prefs.getString('cvdTipo'),
-    );
-    palette = _paletteFromStorage(prefs.getString(_kPalette));
-    final legacyPaletteLabel = prefs.getString('temaPaleta');
-    if (legacyPaletteLabel != null) {
-      palette = _paletteFromLabel(legacyPaletteLabel);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // Migração: usa chaves antigas se as novas não existirem
+      isDark = prefs.getBool(_kDark) ?? prefs.getBool('modoEscuro') ?? false;
+      highContrast =
+          prefs.getBool(_kHighContrast) ?? prefs.getBool('textoAltoContraste') ?? false;
+      largeText = prefs.getBool(_kLargeText) ?? prefs.getBool('textoGrande') ?? false;
+      textScale = prefs.getDouble(_kTextScale) ?? (largeText ? 1.3 : 1.0);
+      colorVision = cvdFromStorage(
+        prefs.getString(_kCvdType) ?? prefs.getString('cvdTipo'),
+      );
+      palette = _paletteFromStorage(prefs.getString(_kPalette));
+      final legacyPaletteLabel = prefs.getString('temaPaleta');
+      if (legacyPaletteLabel != null) {
+        palette = _paletteFromLabel(legacyPaletteLabel);
+      }
+      // Fonte acessível (usando chave nova; mantém compatibilidade com chave antiga se existir)
+      final fontLabel = prefs.getString(_kA11yFont) ?? prefs.getString('fonteDislexia');
+      accessibilityFont = fontFromStorage(fontLabel);
+    } catch (error, stack) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('SharedPreferences load failed: $error');
+        debugPrintStack(stackTrace: stack);
+      }
     }
-    // Fonte acessível (usando chave nova; mantém compatibilidade com chave antiga se existir)
-    final fontLabel = prefs.getString(_kA11yFont) ?? prefs.getString('fonteDislexia');
-    accessibilityFont = fontFromStorage(fontLabel);
     notifyListeners();
   }
 
@@ -330,3 +339,5 @@ TextTheme _withFontFamily(TextTheme base, String family) {
     labelSmall: apply(base.labelSmall),
   );
 }
+
+

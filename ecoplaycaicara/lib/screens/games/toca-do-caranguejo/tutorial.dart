@@ -6,6 +6,7 @@ import '../../../widgets/typing_text.dart';
 import '../../../audio/typing_loop_sfx.dart';
 import '../../../widgets/link_button.dart';
 import '../../../theme/game_styles.dart';
+import '../../../services/user_prefs.dart';
 import 'game.dart' deferred as game;
 
 class TocaTutorialScreen extends StatefulWidget {
@@ -30,15 +31,25 @@ class _TocaTutorialScreenState extends State<TocaTutorialScreen>
   final ValueNotifier<bool> _audioUnlocked = ValueNotifier<bool>(false);
   bool _audioStarted = false;
 
+  Future<void> _loadAudioPreference() async {
+    final stored = await UserPrefs.getAudioEnabled();
+    if (!mounted) return;
+    _sfxEnabled.value = stored;
+  }
+
   @override
   void initState() {
     super.initState();
     _typingSfx = TypingLoopSfx(volume: 0.25);
-    _arrowCtrl =
-        AnimationController(vsync: this, duration: const Duration(milliseconds: 900))
-          ..repeat(reverse: true);
-    _arrowOffset = Tween<Offset>(begin: Offset.zero, end: const Offset(0, 0.18))
-        .animate(CurvedAnimation(parent: _arrowCtrl, curve: Curves.easeInOut));
+    _loadAudioPreference();
+    _arrowCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _arrowOffset = Tween<Offset>(
+      begin: Offset.zero,
+      end: const Offset(0, 0.18),
+    ).animate(CurvedAnimation(parent: _arrowCtrl, curve: Curves.easeInOut));
     _scrollController.addListener(_updateScrollHint);
     WidgetsBinding.instance.addPostFrameCallback((_) => _updateScrollHint());
   }
@@ -93,11 +104,11 @@ class _TocaTutorialScreenState extends State<TocaTutorialScreen>
     final styles = theme.extension<GameStyles>();
 
     final List<String> paragraphs = [
-      'Clique nos caranguejos para capturá-los 🎯, mas preste atenção ao tamanho e ao período reprodutivo! 🦀',
-      '❌ Capturar caranguejos em defeso ou muito pequenos gera -20 pontos e mostra uma explicação sobre a importância da preservação.',
-      '✅ Se você respeitar o defeso ou evitar os jovens, recebe +15 pontos e um aviso: “Proteger o ciclo reprodutivo mantém o mangue vivo!” 🌱',
-      '🧹 Ao clicar em objetos de lixo, como latas e sacolas, você ajuda a limpar o mangue e ganha +20 pontos!',
-      '📚 Leia as curiosidades e jogue por 60 segundos ⏱️!',
+      'Clique nos caranguejos para capturá-los 🎯, mas observe o tamanho e se o período de defeso está ativo! 🦀',
+      '❌ Se você capturar um caranguejo pequeno ou durante o defeso, perde 20 pontos e recebe um aviso explicando o motivo.',
+      '✅ Os caranguejos no tamanho ideal rendem +15 pontos — deixe os jovens crescerem para aumentar sua pontuação.',
+      '🧹 Recolha os resíduos (latas, sacolas, cordas, garrafas...) para limpar o mangue e ganhar +20 pontos com o tipo de material.',
+      '⏱️ A rodada dura 60 segundos; acompanhe o cronômetro e as mensagens para jogar de forma responsável.',
     ];
 
     final listenAll = Listenable.merge([
@@ -110,7 +121,8 @@ class _TocaTutorialScreenState extends State<TocaTutorialScreen>
     return GameScaffold(
       title: 'Toca do Caranguejo',
       backgroundAsset: 'assets/games/toca-do-caranguejo/background.png',
-      mobileBackgroundAsset: 'assets/games/toca-do-caranguejo/background-mobile.png',
+      mobileBackgroundAsset:
+          'assets/games/toca-do-caranguejo/background-mobile.png',
       fill: false,
       child: Listener(
         onPointerDown: (_) async {
@@ -170,10 +182,21 @@ class _TocaTutorialScreenState extends State<TocaTutorialScreen>
                                 color: Colors.brown,
                               ),
                               onPressed: () async {
-                                _sfxEnabled.value = !_sfxEnabled.value;
-                                if (!_sfxEnabled.value && _audioStarted) {
-                                  await _typingSfx.stop();
-                                  _audioStarted = false;
+                                final next = !_sfxEnabled.value;
+                                _sfxEnabled.value = next;
+                                await UserPrefs.setAudioEnabled(next);
+                                if (!next) {
+                                  if (_audioStarted) {
+                                    await _typingSfx.stop();
+                                    _audioStarted = false;
+                                  }
+                                } else if (_typingRunning.value &&
+                                    _audioUnlocked.value &&
+                                    !_audioStarted) {
+                                  await _typingSfx.start(
+                                    segment: const Duration(seconds: 4),
+                                  );
+                                  _audioStarted = true;
                                 }
                               },
                             ),
@@ -189,18 +212,21 @@ class _TocaTutorialScreenState extends State<TocaTutorialScreen>
                             style: styles?.tutorialBody,
                           ),
                           const SizedBox(height: 8),
-                        ]
+                        ],
                       ],
                       _TypingParagraph(
                         text: paragraphs[_paraIndex.value],
                         controller: _typingController,
                         enableSound: _sfxEnabled.value,
-                        showSkipAll:
-                            _paraIndex.value < paragraphs.length - 1,
+                        showSkipAll: _paraIndex.value < paragraphs.length - 1,
                         onStart: () {
                           _typingRunning.value = true;
-                          if (_sfxEnabled.value && _audioUnlocked.value && !_audioStarted) {
-                            _typingSfx.start(segment: const Duration(seconds: 4));
+                          if (_sfxEnabled.value &&
+                              _audioUnlocked.value &&
+                              !_audioStarted) {
+                            _typingSfx.start(
+                              segment: const Duration(seconds: 4),
+                            );
                             _audioStarted = true;
                           }
                         },
@@ -247,7 +273,8 @@ class _TocaTutorialScreenState extends State<TocaTutorialScreen>
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                          builder: (_) => game.TocaGameScreen()),
+                                        builder: (_) => game.TocaGameScreen(),
+                                      ),
                                     );
                                   },
                                   width: 220,
@@ -281,15 +308,14 @@ class _TocaTutorialScreenState extends State<TocaTutorialScreen>
                                   BoxShadow(
                                     color: Colors.black.withOpacity(0.2),
                                     blurRadius: 4,
-                                  )
+                                  ),
                                 ],
                               ),
                               child: Icon(
                                 Icons.keyboard_arrow_down_rounded,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withOpacity(0.95),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withOpacity(0.95),
                                 size: 20,
                               ),
                             ),
@@ -336,7 +362,8 @@ class _TypingParagraphState extends State<_TypingParagraph> {
   @override
   Widget build(BuildContext context) {
     final styles = Theme.of(context).extension<GameStyles>();
-    return Column(
+    final column = Column(
+      key: ValueKey<String>(widget.text),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TypingText(
@@ -347,7 +374,6 @@ class _TypingParagraphState extends State<_TypingParagraph> {
           charDelay: const Duration(milliseconds: 45),
           clickEvery: 2,
           enableSound: widget.enableSound,
-          // Garantir o mesmo tamanho do texto padrão do tutorial
           style: styles?.tutorialBody,
           onStart: widget.onStart,
           onFinished: widget.onFinished,
@@ -358,6 +384,47 @@ class _TypingParagraphState extends State<_TypingParagraph> {
         ],
       ],
     );
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 320),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        final slide = Tween<Offset>(
+          begin: const Offset(0, 0.24),
+          end: Offset.zero,
+        ).animate(curved);
+        final fade = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOut,
+          reverseCurve: Curves.easeIn,
+        );
+        return ClipRect(
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: SlideTransition(
+              position: slide,
+              child: FadeTransition(opacity: fade, child: child),
+            ),
+          ),
+        );
+      },
+      layoutBuilder: (currentChild, previousChildren) {
+        return Stack(
+          alignment: Alignment.bottomCenter,
+          clipBehavior: Clip.none,
+          children: [
+            ...previousChildren,
+            if (currentChild != null) currentChild,
+          ],
+        );
+      },
+      child: column,
+    );
   }
 }
-

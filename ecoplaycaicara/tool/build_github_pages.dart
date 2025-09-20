@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
-/// Builds the Flutter web bundle directly into the repo-level `docs/` folder
-/// configured for GitHub Pages. Forces the HTML renderer, which is the only
-/// option with full support across Safari, Edge e Chrome for this project.
+/// Builds the Flutter web bundle and publishes it into the repo-level `docs/`
+/// folder expected by GitHub Pages. Always targets the HTML renderer so the
+/// game works in Safari and Edge.
 Future<void> main(List<String> args) async {
   if (!File('pubspec.yaml').existsSync()) {
     stderr.writeln('Run this script from the Flutter project root.');
@@ -12,7 +12,7 @@ Future<void> main(List<String> args) async {
   }
 
   final docsDir = Directory('../docs');
-  final docsPath = docsDir.absolute.path;
+  final buildOutputDir = Directory('build/web');
 
   stdout.writeln('Running flutter pub get...');
   final pubGet = await _run('flutter', ['pub', 'get']);
@@ -21,34 +21,37 @@ Future<void> main(List<String> args) async {
     return;
   }
 
-  if (!docsDir.existsSync()) {
-    docsDir.createSync(recursive: true);
+  if (buildOutputDir.existsSync()) {
+    stdout.writeln('Cleaning previous build/web directory...');
+    buildOutputDir.deleteSync(recursive: true);
   }
 
   stdout.writeln(
-    'Building flutter web (renderer: html, base href: /ecoplaycaicara/) into docs/...',
+    'Building flutter web (renderer: html, base href: /ecoplaycaicara/)...',
   );
-  final commonArgs = [
+  final baseArgs = <String>[
     'build',
     'web',
     '--release',
     '--base-href',
     '/ecoplaycaicara/',
-    '--output',
-    docsPath,
   ];
-  final rendererArgs = [...commonArgs, '--web-renderer', 'html'];
 
-  var buildResult = await _run('flutter', rendererArgs, captureOutput: true);
+  var buildResult = await _run(
+    'flutter',
+    [...baseArgs, '--web-renderer', 'html'],
+    captureOutput: true,
+  );
+
   if (buildResult.exitCode != 0) {
     final combined = '${buildResult.stdout ?? ''}\n${buildResult.stderr ?? ''}';
     if (combined.contains('--web-renderer')) {
       stdout.writeln(
-        'Falling back to legacy renderer flags (FLUTTER_WEB_USE_SKIA=false).',
+        'Falling back to legacy flags (FLUTTER_WEB_USE_SKIA=false).',
       );
       buildResult = await _run(
         'flutter',
-        [...commonArgs, '--dart-define=FLUTTER_WEB_USE_SKIA=false'],
+        baseArgs,
         environment: {
           'FLUTTER_WEB_RENDERER': 'html',
           'FLUTTER_WEB_USE_SKIA': 'false',
@@ -63,30 +66,58 @@ Future<void> main(List<String> args) async {
     }
   }
 
+  if (!buildOutputDir.existsSync()) {
+    stderr.writeln('Expected build/web but it was not created.');
+    exitCode = 1;
+    return;
+  }
+
+  stdout.writeln('Copying build/web to ../docs ...');
+  if (docsDir.existsSync()) {
+    docsDir.deleteSync(recursive: true);
+  }
+  _copyDirectory(buildOutputDir, docsDir);
+
   final bootstrapPath =
-      File('${docsDir.absolute.path}${Platform.pathSeparator}flutter_bootstrap.js');
+      File('${docsDir.path}${Platform.pathSeparator}flutter_bootstrap.js');
   if (bootstrapPath.existsSync()) {
     final bootstrap = bootstrapPath.readAsStringSync();
-    const target =
+    const canvaskitConfig =
         '{"compileTarget":"dart2js","renderer":"canvaskit","mainJsPath":"main.dart.js"}';
-    if (bootstrap.contains(target)) {
+    if (bootstrap.contains(canvaskitConfig)) {
       stdout.writeln('Tweaking flutter_bootstrap.js to pin renderer=html.');
       final patched = bootstrap.replaceFirst(
-        target,
+        canvaskitConfig,
         '{"compileTarget":"dart2js","renderer":"html","mainJsPath":"main.dart.js"}',
       );
       bootstrapPath.writeAsStringSync(patched);
     }
   }
 
-  final noJekyllPath =
-      File('${docsDir.absolute.path}${Platform.pathSeparator}.nojekyll');
-  if (!noJekyllPath.existsSync()) {
-    noJekyllPath.createSync(recursive: true);
+  final noJekyll = File('${docsDir.path}${Platform.pathSeparator}.nojekyll');
+  if (!noJekyll.existsSync()) {
+    noJekyll.createSync(recursive: true);
   }
 
   stdout.writeln('Web bundle ready in ${docsDir.absolute.path}');
   stdout.writeln('Commit the docs/ folder and push to GitHub to update Pages.');
+}
+
+void _copyDirectory(Directory source, Directory target) {
+  for (final entity in source.listSync(recursive: true)) {
+    final relativeUri = entity.uri.path.substring(source.uri.path.length);
+    if (relativeUri.isEmpty) {
+      continue;
+    }
+    final newUri = target.uri.resolve(relativeUri);
+    if (entity is Directory) {
+      Directory.fromUri(newUri).createSync(recursive: true);
+    } else if (entity is File) {
+      final file = File.fromUri(newUri);
+      file.parent.createSync(recursive: true);
+      entity.copySync(file.path);
+    }
+  }
 }
 
 class _RunResult {

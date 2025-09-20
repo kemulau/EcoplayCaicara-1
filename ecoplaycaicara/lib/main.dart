@@ -1,18 +1,40 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'app_scroll_behavior.dart';
-import 'screens/cadastro.dart';
 import 'screens/home.dart';
-import 'screens/book_demo.dart';
 import 'theme/theme_provider.dart';
 
 void main() {
-  runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
-      child: const EcoplayCaicaraApp(),
-    ),
-  );
+  WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('FlutterError: ${details.exceptionAsString()}');
+    debugPrintStack(stackTrace: details.stack);
+  };
+
+  WidgetsBinding.instance.platformDispatcher.onError = (
+    Object error,
+    StackTrace stack,
+  ) {
+    debugPrint('PlatformDispatcher error: ${error.runtimeType} - $error');
+    debugPrintStack(stackTrace: stack);
+    return true;
+  };
+
+  runZonedGuarded<void>(() {
+    runApp(
+      ChangeNotifierProvider(
+        create: (_) => ThemeProvider(),
+        child: const EcoplayCaicaraApp(),
+      ),
+    );
+  }, (Object error, StackTrace stack) {
+    debugPrint('Uncaught zone error: ${error.runtimeType} - $error');
+    debugPrintStack(stackTrace: stack);
+  });
 }
 
 class EcoplayCaicaraApp extends StatelessWidget {

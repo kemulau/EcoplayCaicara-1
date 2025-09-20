@@ -36,9 +36,7 @@ class _PixelButtonState extends State<PixelButton> {
     final top = chrome?.buttonGradientTop ?? _tint(primary, 0.18);
     final bottom = chrome?.buttonGradientBottom ?? _shade(primary, 0.20);
 
-    final scale = _isPressed
-        ? 0.97
-        : (_isHovered ? 1.03 : 1.0);
+    final scale = _isPressed ? 0.97 : (_isHovered ? 1.03 : 1.0);
 
     final borderColor = _isPressed
         ? bottom
@@ -69,8 +67,7 @@ class _PixelButtonState extends State<PixelButton> {
                 end: Alignment.bottomCenter,
                 colors: _isPressed ? [bottom, primary] : [top, bottom],
               ),
-              borderRadius:
-                  BorderRadius.circular(chrome?.buttonRadius ?? 12),
+              borderRadius: BorderRadius.circular(chrome?.buttonRadius ?? 12),
               border: Border.all(color: borderColor, width: 2),
               boxShadow: [
                 if (!_isPressed)
@@ -80,7 +77,7 @@ class _PixelButtonState extends State<PixelButton> {
                           offset: const Offset(0, 8),
                           blurRadius: 18,
                           color: Colors.black.withOpacity(0.35),
-                        )
+                        ),
                       ]),
                 // subtle neon edge
                 if (_isHovered)
@@ -144,7 +141,9 @@ class _PixelButtonState extends State<PixelButton> {
                     ignoring: true,
                     child: Container(
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(12),
+                        ),
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
@@ -169,25 +168,36 @@ class _PixelButtonState extends State<PixelButton> {
                           const SizedBox(width: 8),
                         ],
                         Flexible(
-                          child: Text(
-                            widget.label.toUpperCase(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            // Usa o textTheme para respeitar fontes acessíveis (ex.: OpenDyslexic)
-                            style: (Theme.of(context).textTheme.labelLarge ?? const TextStyle())
-                                .copyWith(
-                                  fontSize: 12,
-                                  letterSpacing: 1.2,
-                                  color: onPrimary,
-                                  shadows: [
-                                    Shadow(
-                                      offset: const Offset(0, 1),
-                                      blurRadius: 0,
-                                      color: Colors.black54,
-                                    ),
-                                  ],
-                                ),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final allowWrap = (constraints.maxWidth < 260);
+                              final labelStyle =
+                                  (Theme.of(context).textTheme.labelLarge ??
+                                          const TextStyle())
+                                      .copyWith(
+                                        fontSize: 12,
+                                        letterSpacing: allowWrap ? 0.8 : 1.2,
+                                        height: 1.25,
+                                        color: onPrimary,
+                                        shadows: const [
+                                          Shadow(
+                                            offset: Offset(0, 1),
+                                            blurRadius: 0,
+                                            color: Colors.black54,
+                                          ),
+                                        ],
+                                      );
+                              return Text(
+                                widget.label.toUpperCase(),
+                                maxLines: allowWrap ? 2 : 1,
+                                softWrap: allowWrap,
+                                overflow: allowWrap
+                                    ? TextOverflow.visible
+                                    : TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: labelStyle,
+                              );
+                            },
                           ),
                         ),
                         if (widget.iconRight && widget.icon != null) ...[

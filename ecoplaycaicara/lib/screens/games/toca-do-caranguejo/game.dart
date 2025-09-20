@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 
 import '../../../widgets/pixel_button.dart';
 import '../../../widgets/game_frame.dart';
-import '../../../widgets/typing_text.dart';
 import '../../../widgets/defeso_end_toast.dart'; // toast do fim do defeso
 
 import 'flame_game.dart';
@@ -29,16 +28,31 @@ class _TocaGameScreenState extends State<TocaGameScreen> {
   @override
   void initState() {
     super.initState();
-    _game = CrabGame(onGameOver: () {
-      if (!mounted) return;
-      _game.overlays.add('GameOver');
-    });
-    unawaited(CrabGame.preloadAssets());
+    _game = CrabGame(
+      onGameOver: () {
+        if (!mounted) return;
+        _game.overlays.add('GameOver');
+      },
+    );
+    unawaited(CrabGame.preloadImages());
+    unawaited(CrabGame.preloadAudio());
 
     // Pausa o jogo inicialmente e mostra o gate de início
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(precacheImage(const AssetImage('assets/games/toca-do-caranguejo/background.png'), context));
-      unawaited(precacheImage(const AssetImage('assets/games/toca-do-caranguejo/background-mobile.png'), context));
+      unawaited(
+        precacheImage(
+          const AssetImage('assets/games/toca-do-caranguejo/background.png'),
+          context,
+        ),
+      );
+      unawaited(
+        precacheImage(
+          const AssetImage(
+            'assets/games/toca-do-caranguejo/background-mobile.png',
+          ),
+          context,
+        ),
+      );
       if (widget.skipStartGate) {
         _game.startGame();
         _game.resumeEngine();
@@ -66,7 +80,8 @@ class _TocaGameScreenState extends State<TocaGameScreen> {
               LayoutBuilder(
                 builder: (context, _) {
                   final size = MediaQuery.of(context).size;
-                  final useMobile = size.width <= 720 || size.height > size.width;
+                  final useMobile =
+                      size.width <= 720 || size.height > size.width;
                   final asset = useMobile
                       ? 'assets/games/toca-do-caranguejo/background-mobile.png'
                       : 'assets/games/toca-do-caranguejo/background.png';
@@ -79,10 +94,14 @@ class _TocaGameScreenState extends State<TocaGameScreen> {
                 game: _game,
                 overlayBuilderMap: {
                   'Hud': (context, game) => _HudOverlay(game as CrabGame),
-                  'ActionPopup': (context, game) => _ActionPopupOverlay(game as CrabGame),
-                  'GameOver': (context, game) => _GameOverOverlay(game as CrabGame),
-                  'StartGate': (context, game) => _StartGateOverlay(game as CrabGame),
-                  'DebugBurrows': (context, game) => DebugBurrowsOverlay(game as CrabGame),
+                  'ActionPopup': (context, game) =>
+                      _ActionPopupOverlay(game as CrabGame),
+                  'GameOver': (context, game) =>
+                      _GameOverOverlay(game as CrabGame),
+                  'StartGate': (context, game) =>
+                      _StartGateOverlay(game as CrabGame),
+                  'DebugBurrows': (context, game) =>
+                      DebugBurrowsOverlay(game as CrabGame),
                 },
                 initialActiveOverlays: const ['Hud', 'StartGate'],
               ),
@@ -132,7 +151,10 @@ class _HudOverlay extends StatelessWidget {
           builder: (context, constraints) {
             final isNarrow = constraints.maxWidth < 560;
             final isDesktopLike = (constraints.maxWidth >= 800);
-            final pad = EdgeInsets.symmetric(horizontal: isNarrow ? 8 : 16, vertical: isNarrow ? 6 : 12);
+            final pad = EdgeInsets.symmetric(
+              horizontal: isNarrow ? 8 : 16,
+              vertical: isNarrow ? 6 : 12,
+            );
             final fontSize = isNarrow ? 13.0 : 16.0;
 
             final hud = SafeArea(
@@ -141,70 +163,112 @@ class _HudOverlay extends StatelessWidget {
                 child: isDesktopLike
                     ? Align(
                         alignment: Alignment.topCenter,
-                        child: Wrap(
-                          spacing: 10,
-                          runSpacing: 6,
-                          crossAxisAlignment: WrapCrossAlignment.start,
-                          alignment: WrapAlignment.center,
-                          children: [
-                            // ⬅️ Bloco: Pontuação + DEFESO logo abaixo
-                            _scoreWithDefeso(game, fontSize: fontSize),
+                        child: ValueListenableBuilder<bool>(
+                          valueListenable: game.defesoAtivo,
+                          builder: (context, defesoAtivo, _) {
+                            return Wrap(
+                              spacing: 10,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              alignment: WrapAlignment.center,
+                              children: [
+                                ValueListenableBuilder<int>(
+                                  valueListenable: game.score,
+                                  builder: (context, score, __) => _infoBox(
+                                    '🎯 Pontuação: $score',
+                                    fontSize: fontSize,
+                                  ),
+                                ),
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 220),
+                                  switchInCurve: Curves.easeOutCubic,
+                                  switchOutCurve: Curves.easeInCubic,
+                                  child: defesoAtivo
+                                      ? Padding(
+                                          key: const ValueKey(
+                                            'defeso-badge-inline',
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 2,
+                                          ),
+                                          child: _defesoBadge(
+                                            fontSize: fontSize,
+                                          ),
+                                        )
+                                      : const SizedBox.shrink(
+                                          key: ValueKey('defeso-badge-hidden'),
+                                        ),
+                                ),
 
-                            // Tempo
-                            ValueListenableBuilder<int>(
-                              valueListenable: game.timeLeft,
-                              builder: (context, time, _) =>
-                                  _infoBox('🕒 Tempo: $time s', fontSize: fontSize),
-                            ),
+                                // Tempo
+                                ValueListenableBuilder<int>(
+                                  valueListenable: game.timeLeft,
+                                  builder: (context, time, _) => _infoBox(
+                                    '🕒 Tempo: $time s',
+                                    fontSize: fontSize,
+                                  ),
+                                ),
 
-                            // Som on/off
-                            ValueListenableBuilder<bool>(
-                              valueListenable: game.sfxEnabled,
-                              builder: (context, enabled, _) => _hudIconButton(
-                                icon: enabled ? Icons.volume_up_rounded : Icons.volume_off_rounded,
-                                onPressed: () => game.sfxEnabled.value = !enabled,
-                              ),
-                            ),
+                                // Som on/off
+                                ValueListenableBuilder<bool>(
+                                  valueListenable: game.sfxEnabled,
+                                  builder: (context, enabled, _) =>
+                                      _hudIconButton(
+                                        icon: enabled
+                                            ? Icons.volume_up_rounded
+                                            : Icons.volume_off_rounded,
+                                        onPressed: () =>
+                                            game.sfxEnabled.value = !enabled,
+                                      ),
+                                ),
 
-                            // [A11Y] Botão de acessibilidade (idêntico ao do cadastro em efeito)
-                            _hudIconButton(
-                              icon: Icons.accessibility_new_rounded,
-                              onPressed: () => _openA11y(context),
-                              tooltip: 'Acessibilidade',
-                            ),
-                            // [A11Y] fim
+                                // [A11Y] Botão de acessibilidade (idêntico ao do cadastro em efeito)
+                                _hudIconButton(
+                                  icon: Icons.accessibility_new_rounded,
+                                  onPressed: () => _openA11y(context),
+                                  tooltip: 'Acessibilidade',
+                                ),
+                                // [A11Y] fim
 
-                            // Recarregar
-                            _hudIconButton(
-                              icon: Icons.refresh_rounded,
-                              onPressed: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const TocaGameScreen()),
-                                );
-                              },
-                            ),
+                                // Recarregar
+                                _hudIconButton(
+                                  icon: Icons.refresh_rounded,
+                                  onPressed: () {
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const TocaGameScreen(),
+                                      ),
+                                    );
+                                  },
+                                ),
 
-                            // Debug (somente dev)
-                            if (kDebugMode)
-                              _hudIconButton(
-                                icon: Icons.bug_report_rounded,
-                                onPressed: () {
-                                  if (game.overlays.isActive('DebugBurrows')) {
-                                    game.overlays.remove('DebugBurrows');
-                                  } else {
-                                    game.overlays.add('DebugBurrows');
-                                  }
-                                },
-                              ),
-                          ],
+                                // Debug (somente dev)
+                                if (kDebugMode)
+                                  _hudIconButton(
+                                    icon: Icons.bug_report_rounded,
+                                    onPressed: () {
+                                      if (game.overlays.isActive(
+                                        'DebugBurrows',
+                                      )) {
+                                        game.overlays.remove('DebugBurrows');
+                                      } else {
+                                        game.overlays.add('DebugBurrows');
+                                      }
+                                    },
+                                  ),
+                              ],
+                            );
+                          },
                         ),
                       )
                     : Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // ⬅️ Coluna: Pontuação + DEFESO logo abaixo
-                          Flexible(child: _scoreWithDefeso(game, fontSize: fontSize)),
+                          Flexible(
+                            child: _scoreWithDefeso(game, fontSize: fontSize),
+                          ),
                           const SizedBox(width: 8),
                           // ➡️ Demais controles
                           Flexible(
@@ -218,15 +282,21 @@ class _HudOverlay extends StatelessWidget {
                                 children: [
                                   ValueListenableBuilder<int>(
                                     valueListenable: game.timeLeft,
-                                    builder: (context, time, _) =>
-                                        _infoBox('🕒 Tempo: $time s', fontSize: fontSize),
+                                    builder: (context, time, _) => _infoBox(
+                                      '🕒 Tempo: $time s',
+                                      fontSize: fontSize,
+                                    ),
                                   ),
                                   ValueListenableBuilder<bool>(
                                     valueListenable: game.sfxEnabled,
-                                    builder: (context, enabled, _) => _hudIconButton(
-                                      icon: enabled ? Icons.volume_up_rounded : Icons.volume_off_rounded,
-                                      onPressed: () => game.sfxEnabled.value = !enabled,
-                                    ),
+                                    builder: (context, enabled, _) =>
+                                        _hudIconButton(
+                                          icon: enabled
+                                              ? Icons.volume_up_rounded
+                                              : Icons.volume_off_rounded,
+                                          onPressed: () =>
+                                              game.sfxEnabled.value = !enabled,
+                                        ),
                                   ),
 
                                   // [A11Y] Botão de acessibilidade também no layout compacto
@@ -235,14 +305,17 @@ class _HudOverlay extends StatelessWidget {
                                     onPressed: () => _openA11y(context),
                                     tooltip: 'Acessibilidade',
                                   ),
-                                  // [A11Y] fim
 
+                                  // [A11Y] fim
                                   _hudIconButton(
                                     icon: Icons.refresh_rounded,
                                     onPressed: () {
                                       Navigator.pushReplacement(
                                         context,
-                                        MaterialPageRoute(builder: (_) => const TocaGameScreen()),
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const TocaGameScreen(),
+                                        ),
                                       );
                                     },
                                   ),
@@ -250,7 +323,9 @@ class _HudOverlay extends StatelessWidget {
                                     _hudIconButton(
                                       icon: Icons.bug_report_rounded,
                                       onPressed: () {
-                                        if (game.overlays.isActive('DebugBurrows')) {
+                                        if (game.overlays.isActive(
+                                          'DebugBurrows',
+                                        )) {
                                           game.overlays.remove('DebugBurrows');
                                         } else {
                                           game.overlays.add('DebugBurrows');
@@ -273,15 +348,19 @@ class _HudOverlay extends StatelessWidget {
                 Positioned.fill(
                   child: ValueListenableBuilder<String?>(
                     valueListenable: game.actionMessage,
-                    builder: (context, message, _) => message == null
-                        ? const SizedBox.shrink()
-                        : Center(
-                            child: ValueListenableBuilder<bool>(
-                              valueListenable: game.sfxEnabled,
-                              builder: (context, enabled, __) =>
-                                  _popupMensagemDigitando(message, enableSound: enabled),
-                            ),
+                    builder: (context, message, _) {
+                      if (message == null) return const SizedBox.shrink();
+                      return GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onTap: game.dismissActionMessage,
+                        child: Center(
+                          child: _popupMensagem(
+                            message,
+                            game.dismissActionMessage,
                           ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -342,37 +421,42 @@ class _HudOverlay extends StatelessWidget {
     );
   }
 
-  Widget _popupMensagemDigitando(String texto, {required bool enableSound}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.brown, width: 3),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 6,
-            offset: const Offset(4, 4),
-            color: Colors.black.withOpacity(0.4),
+  Widget _popupMensagem(String texto, VoidCallback onDismiss) {
+    return GestureDetector(
+      onTap: onDismiss,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        margin: const EdgeInsets.symmetric(horizontal: 24),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.95),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.brown, width: 3),
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 6,
+              offset: const Offset(4, 4),
+              color: Colors.black.withOpacity(0.35),
+            ),
+          ],
+        ),
+        child: Text(
+          texto,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.brown,
           ),
-        ],
-      ),
-      child: TypingText(
-        text: texto,
-        charDelay: const Duration(milliseconds: 22),
-        clickEvery: 2,
-        enableSound: enableSound,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: Colors.brown,
         ),
       ),
     );
   }
 
-  Widget _hudIconButton({required IconData icon, required VoidCallback onPressed, String? tooltip}) {
+  Widget _hudIconButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    String? tooltip,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.9),
@@ -464,7 +548,15 @@ class _GameOverOverlay extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🏁 Fim de Jogo!', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.brown)),
+            const Text(
+              '🏁 Fim de Jogo!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.brown,
+              ),
+            ),
             const SizedBox(height: 12),
             ValueListenableBuilder<int>(
               valueListenable: game.score,
@@ -535,7 +627,11 @@ class _StartGateOverlay extends StatelessWidget {
               const Text(
                 'Pronto para iniciar?',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.brown),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.brown,
+                ),
               ),
               const SizedBox(height: 8),
               const Text(
